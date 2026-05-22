@@ -1,0 +1,6 @@
+# Minimal Supabase CLI config. Run migrations with:
+# supabase link --project-ref <ref>
+# supabase db push
+
+[project]
+id = "home-library"
