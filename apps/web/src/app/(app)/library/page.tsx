@@ -4,14 +4,19 @@ import {
   filterOwnedBooks,
   type ReadFilter,
 } from "@home-library/shared";
+
 import Link from "next/link";
-import { useMemo, useState } from "react";
+
 import {
-  useRouter,
-  useSearchParams,
-} from "next/navigation";
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import { useRouter } from "next/navigation";
 
 import { BookList } from "@/components/book-list";
+
 import {
   useBookMutations,
   useBooksQuery,
@@ -19,17 +24,34 @@ import {
 
 export default function LibraryPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const filter =
-    (searchParams.get("filter") as ReadFilter | null) ??
-    "all";
+  const [filter, setFilterState] =
+    useState<ReadFilter>("all");
 
   const [search, setSearch] = useState("");
 
-  const { data: books, isLoading } = useBooksQuery();
+  useEffect(() => {
+    const params = new URLSearchParams(
+      window.location.search,
+    );
 
-  const { updateReadStatus } = useBookMutations();
+    const value = params.get("filter");
+
+    if (
+      value === "all" ||
+      value === "unread" ||
+      value === "reading" ||
+      value === "read"
+    ) {
+      setFilterState(value);
+    }
+  }, []);
+
+  const { data: books, isLoading } =
+    useBooksQuery();
+
+  const { updateReadStatus } =
+    useBookMutations();
 
   const filtered = useMemo(
     () =>
@@ -51,9 +73,13 @@ export default function LibraryPage() {
     { value: "read", label: "Read" },
   ];
 
-  const setFilter = (value: ReadFilter) => {
+  const setFilter = (
+    value: ReadFilter,
+  ) => {
+    setFilterState(value);
+
     const params = new URLSearchParams(
-      searchParams.toString(),
+      window.location.search,
     );
 
     if (value === "all") {
@@ -132,7 +158,8 @@ export default function LibraryPage() {
           renderActions={(book) => (
             <select
               value={
-                book.read_status ?? "unread"
+                book.read_status ??
+                "unread"
               }
               onChange={(e) =>
                 updateReadStatus.mutate({
