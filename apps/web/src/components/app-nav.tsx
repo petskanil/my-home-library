@@ -63,8 +63,8 @@ export function AppNav() {
         </div>
       </header>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-card/95 backdrop-blur-3xl sm:hidden ios-home-indicator">
-        <nav className="mx-auto flex max-w-4xl items-center justify-between px-3 py-3 gap-2">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-card/95 backdrop-blur-3xl sm:hidden ios-home-indicator safe-bottom-nav">
+        <nav className="mx-auto flex max-w-4xl items-center justify-between px-3 pt-3 gap-2">
           {links.map((link) => (
             <Link
               key={link.href}

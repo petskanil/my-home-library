@@ -102,6 +102,10 @@ main.app-shell::before {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
+.safe-bottom-nav {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+}
+
 .glass-panel {
   border-radius: 1.75rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
