@@ -41,6 +41,8 @@ export default function EditBookPage() {
           cover_url: book.cover_url ?? undefined,
           shelf: book.shelf,
           read_status: book.read_status ?? undefined,
+          progress_page: book.progress_page ?? undefined,
+          progress_percent: book.progress_percent ?? undefined,
           notes: book.notes ?? undefined,
         }}
         onSubmit={handleSubmit}

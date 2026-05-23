@@ -20,6 +20,9 @@ type DbBook = {
   cover_url: string | null;
   shelf: Shelf;
   read_status: ReadStatus | null;
+  progress_page: number | null;
+  progress_percent: number | null;
+  total_pages: number | null;
   notes: string | null;
   acquired_at: string | null;
   finished_at: string | null;
@@ -44,6 +47,9 @@ function toDbPayload(input: NormalizedBookInput, userId: string) {
     cover_url: input.cover_url || null,
     shelf: input.shelf,
     read_status: input.read_status,
+    progress_page: input.progress_page ?? null,
+    progress_percent: input.progress_percent ?? null,
+    total_pages: input.total_pages ?? null,
     notes: input.notes ?? null,
     acquired_at: input.acquired_at ?? null,
     finished_at: input.finished_at ?? null,
@@ -108,6 +114,9 @@ export async function updateBook(
   if (input.author !== undefined) patch.author = input.author;
   if (input.isbn !== undefined) patch.isbn = input.isbn ?? null;
   if (input.cover_url !== undefined) patch.cover_url = input.cover_url || null;
+  if (input.progress_page !== undefined) patch.progress_page = input.progress_page ?? null;
+  if (input.progress_percent !== undefined) patch.progress_percent = input.progress_percent ?? null;
+  if (input.total_pages !== undefined) patch.total_pages = input.total_pages ?? null;
   if (input.notes !== undefined) patch.notes = input.notes ?? null;
   if (input.acquired_at !== undefined) patch.acquired_at = input.acquired_at ?? null;
   if (input.finished_at !== undefined) patch.finished_at = input.finished_at ?? null;

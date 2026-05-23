@@ -30,6 +30,16 @@ export function BookForm({
   const [readStatus, setReadStatus] = useState(
     initial?.read_status ?? "unread",
   );
+  const [progressPage, setProgressPage] = useState<number | undefined>(
+    initial?.progress_page ?? undefined,
+  );
+  const [progressPercent, setProgressPercent] = useState<number | undefined>(
+    initial?.progress_percent ?? undefined,
+  );
+  const [totalPages, setTotalPages] = useState<number | undefined>(
+    initial?.total_pages ?? undefined,
+  );
+  const [progressLastEdited, setProgressLastEdited] = useState<"page" | "percent" | null>(null);
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,6 +49,53 @@ export function BookForm({
     setAuthor(result.author);
     setIsbn(result.isbn);
     if (result.cover_url) setCoverUrl(result.cover_url);
+    if (result.total_pages !== undefined) setTotalPages(result.total_pages);
+  }
+
+  function computePercent(page: number, total: number) {
+    return Math.min(100, Math.max(0, Math.round((page / total) * 100)));
+  }
+
+  function computePage(percent: number, total: number) {
+    return Math.min(total, Math.max(0, Math.round((percent / 100) * total)));
+  }
+
+  function handleProgressPageChange(value: string) {
+    const page = value ? Number(value) : undefined;
+    setProgressLastEdited("page");
+    setProgressPage(page);
+    if (page !== undefined && totalPages !== undefined && totalPages > 0) {
+      setProgressPercent(computePercent(page, totalPages));
+    } else {
+      setProgressPercent(undefined);
+    }
+  }
+
+  function handleProgressPercentChange(value: string) {
+    const percent = value ? Number(value) : undefined;
+    setProgressLastEdited("percent");
+    setProgressPercent(percent);
+    if (percent !== undefined && totalPages !== undefined && totalPages > 0) {
+      setProgressPage(computePage(percent, totalPages));
+    } else {
+      setProgressPage(undefined);
+    }
+  }
+
+  function handleTotalPagesChange(value: string) {
+    const pages = value ? Number(value) : undefined;
+    setTotalPages(pages);
+    if (pages !== undefined && pages > 0) {
+      if (progressLastEdited === "page" && progressPage !== undefined) {
+        setProgressPercent(computePercent(progressPage, pages));
+      } else if (progressLastEdited === "percent" && progressPercent !== undefined) {
+        setProgressPage(computePage(progressPercent, pages));
+      } else if (progressPage !== undefined) {
+        setProgressPercent(computePercent(progressPage, pages));
+      } else if (progressPercent !== undefined) {
+        setProgressPage(computePage(progressPercent, pages));
+      }
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -53,6 +110,15 @@ export function BookForm({
       cover_url: coverUrl || undefined,
       shelf,
       read_status: shelf === "owned" ? readStatus : undefined,
+      ...(shelf === "owned" && readStatus === "reading" && progressPage !== undefined
+        ? { progress_page: progressPage }
+        : {}),
+      ...(shelf === "owned" && readStatus === "reading" && progressPercent !== undefined
+        ? { progress_percent: progressPercent }
+        : {}),
+      ...(shelf === "owned" && readStatus === "reading" && totalPages !== undefined
+        ? { total_pages: totalPages }
+        : {}),
       notes: notes || undefined,
     };
 
@@ -133,6 +199,41 @@ export function BookForm({
           </select>
         </div>
       )}
+        {shelf === "owned" && readStatus === "reading" && (
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="block text-sm text-parchment-muted mb-1">Current page</label>
+              <input
+                value={progressPage ?? ""}
+                onChange={(e) => handleProgressPageChange(e.target.value)}
+                type="number"
+                min={0}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-parchment-muted mb-1">Percent complete</label>
+              <input
+                value={progressPercent ?? ""}
+                onChange={(e) => handleProgressPercentChange(e.target.value)}
+                type="number"
+                min={0}
+                max={100}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-parchment-muted mb-1">Total pages</label>
+              <input
+                value={totalPages ?? ""}
+                onChange={(e) => handleTotalPagesChange(e.target.value)}
+                type="number"
+                min={1}
+                className="input-field"
+              />
+            </div>
+          </div>
+        )}
       <div>
         <label className="block text-sm text-parchment-muted mb-1">Notes</label>
         <textarea

@@ -5,6 +5,7 @@ export const bookLookupResultSchema = z.object({
   author: z.string().min(1),
   isbn: z.string().min(10),
   cover_url: z.string().url().optional(),
+  total_pages: z.number().int().positive().optional(),
   source: z.enum(["nb", "bibsys", "openlibrary"]),
 });
 

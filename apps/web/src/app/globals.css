@@ -3,11 +3,11 @@
 :root {
   --ink: #14110e;
   --wood: #1c1814;
-  --card: #262019;
-  --card-hover: #2e2720;
-  --elevated: #342c24;
-  --border: #4a4035;
-  --border-subtle: #3a322a;
+  --card: #241c15;
+  --card-hover: #2a221b;
+  --elevated: #31291f;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.04);
   --parchment: #f4efe4;
   --parchment-muted: #c4b8a5;
   --gold: #c9a84c;
@@ -40,7 +40,12 @@
 }
 
 body {
-  background: var(--wood);
+  background-color: var(--wood);
+  background-image:
+    radial-gradient(circle at 10% 10%, rgba(201, 168, 76, 0.14), transparent 18%),
+    radial-gradient(circle at 85% 15%, rgba(107, 58, 69, 0.12), transparent 20%),
+    linear-gradient(180deg, #110f0c 0%, #191410 45%, #14110e 100%);
+  background-attachment: fixed;
   color: var(--parchment);
   font-family: var(--font-source-serif), Georgia, "Times New Roman", serif;
   min-height: 100vh;
@@ -61,24 +66,28 @@ body::before {
 }
 
 .card {
-  border-radius: 0.75rem;
+  border-radius: 1.25rem;
   border: 1px solid var(--border-subtle);
-  background: linear-gradient(145deg, var(--card) 0%, var(--elevated) 100%);
+  background: linear-gradient(160deg, rgba(36, 28, 21, 0.96), rgba(29, 22, 16, 0.98));
   box-shadow:
-    0 1px 0 rgba(201, 168, 76, 0.06) inset,
-    0 8px 24px rgba(0, 0, 0, 0.25);
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 22px 45px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
 }
 
 .btn-primary {
-  border-radius: 0.5rem;
-  background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dim) 100%);
+  border-radius: 0.85rem;
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.96), rgba(143, 122, 58, 0.98));
   color: var(--ink);
-  font-weight: 600;
-  transition: filter 0.15s ease, transform 0.15s ease;
+  font-weight: 700;
+  box-shadow: 0 12px 24px rgba(201, 168, 76, 0.18);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(201, 168, 76, 0.22);
 }
 
 .btn-primary:disabled {
@@ -86,92 +95,97 @@ body::before {
 }
 
 .btn-secondary {
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
-  background: var(--card);
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--parchment);
-  transition: background 0.15s ease, border-color 0.15s ease;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--card-hover);
-  border-color: var(--gold-dim);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(201, 168, 76, 0.18);
+  transform: translateY(-0.5px);
 }
 
 .input-field {
   width: 100%;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
-  background: var(--ink);
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--parchment);
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem 0.9rem;
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .input-field::placeholder {
   color: var(--parchment-muted);
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .input-field:focus {
   outline: none;
-  border-color: var(--gold-dim);
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.15);
+  border-color: rgba(201, 168, 76, 0.35);
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.14);
 }
 
 .badge {
   display: inline-block;
   font-size: 0.75rem;
-  padding: 0.125rem 0.5rem;
+  padding: 0.2rem 0.65rem;
   border-radius: 9999px;
-  border: 1px solid var(--border);
-  background: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--parchment-muted);
 }
 
 .badge-wishlist {
-  border-color: var(--burgundy);
-  background: rgba(107, 58, 69, 0.35);
+  border-color: rgba(107, 58, 69, 0.4);
+  background: rgba(107, 58, 69, 0.28);
   color: #e8d4d8;
 }
 
 .badge-reading {
-  border-color: var(--forest);
-  background: rgba(61, 82, 72, 0.4);
+  border-color: rgba(61, 82, 72, 0.45);
+  background: rgba(61, 82, 72, 0.28);
   color: #d4e4d9;
 }
 
 .badge-read {
-  border-color: var(--gold-dim);
-  background: rgba(143, 122, 58, 0.25);
+  border-color: rgba(143, 122, 58, 0.35);
+  background: rgba(143, 122, 58, 0.2);
   color: var(--gold);
 }
 
 .page-title {
   font-family: var(--font-cormorant), Georgia, serif;
-  font-size: 2rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: clamp(2.25rem, 4vw, 3rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
   color: var(--parchment);
+  text-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
 }
 
 .page-subtitle {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: var(--parchment-muted);
 }
 
 .chip-active {
-  background: var(--gold-dim);
-  border-color: var(--gold);
-  color: var(--parchment);
+  background: rgba(201, 168, 76, 0.14);
+  border-color: rgba(201, 168, 76, 0.35);
+  color: var(--gold);
 }
 
 .chip-inactive {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--parchment-muted);
 }
 
 .chip-inactive:hover {
-  border-color: var(--gold-dim);
+  border-color: rgba(201, 168, 76, 0.18);
   color: var(--parchment);
 }

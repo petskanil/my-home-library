@@ -2,6 +2,7 @@
 
 import type { BookLookupResult } from "@home-library/shared";
 import { useState } from "react";
+import IsbnScanner from "./isbn-scanner";
 
 type IsbnLookupFieldProps = {
   isbn: string;
@@ -16,12 +17,13 @@ export function IsbnLookupField({
 }: IsbnLookupFieldProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
-  async function handleLookup() {
+  async function fetchAndNotify(rawIsbn: string) {
     setMessage(null);
     setLoading(true);
     try {
-      const encoded = encodeURIComponent(isbn.trim());
+      const encoded = encodeURIComponent(rawIsbn.trim());
       const res = await fetch(`/api/isbn/${encoded}`);
       const body = await res.json();
       if (!res.ok) {
@@ -30,19 +32,38 @@ export function IsbnLookupField({
       }
       onResult(body as BookLookupResult);
       setMessage(
-        `Found via ${
-          body.source === "nb"
-            ? "Nasjonalbiblioteket"
-            : body.source === "bibsys"
-              ? "Norbok"
-              : "Open Library"
-        }`,
+        body.total_pages
+          ? `Found via ${
+              body.source === "nb"
+                ? "Nasjonalbiblioteket"
+                : body.source === "bibsys"
+                  ? "Norbok"
+                  : "Open Library"
+            }. ${body.total_pages} pages.`
+          : `Found via ${
+              body.source === "nb"
+                ? "Nasjonalbiblioteket"
+                : body.source === "bibsys"
+                  ? "Norbok"
+                  : "Open Library"
+            }`,
       );
     } catch {
       setMessage("Could not look up ISBN");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleLookup() {
+    if (!isbn.trim()) return;
+    await fetchAndNotify(isbn);
+  }
+
+  async function handleScan(isbnScanned: string) {
+    setScanning(false);
+    onIsbnChange(isbnScanned);
+    await fetchAndNotify(isbnScanned);
   }
 
   return (
@@ -55,14 +76,23 @@ export function IsbnLookupField({
           placeholder="9788202560621"
           className="input-field flex-1"
         />
-        <button
-          type="button"
-          onClick={handleLookup}
-          disabled={loading || !isbn.trim()}
-          className="px-3 py-2 rounded-md btn-secondary text-sm whitespace-nowrap disabled:opacity-50"
-        >
-          {loading ? "…" : "Look up"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setScanning(true)}
+            className="px-3 py-2 rounded-md btn-secondary text-sm whitespace-nowrap"
+          >
+            Scan
+          </button>
+          <button
+            type="button"
+            onClick={handleLookup}
+            disabled={loading || !isbn.trim()}
+            className="px-3 py-2 rounded-md btn-secondary text-sm whitespace-nowrap disabled:opacity-50"
+          >
+            {loading ? "…" : "Look up"}
+          </button>
+        </div>
       </div>
       <p className="text-xs text-parchment-muted mt-1 opacity-80">
         Norwegian sources first, then Open Library.
@@ -74,6 +104,8 @@ export function IsbnLookupField({
           {message}
         </p>
       )}
+
+      {scanning && <IsbnScanner onScan={handleScan} onClose={() => setScanning(false)} />}
     </div>
   );
 }

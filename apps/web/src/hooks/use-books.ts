@@ -23,6 +23,7 @@ export function useBooksQuery() {
   return useQuery({
     queryKey: BOOKS_KEY,
     queryFn: () => listBooks(getClient()),
+    onError: (err) => console.error("books query error:", err),
   });
 }
 

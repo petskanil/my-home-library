@@ -128,6 +128,7 @@ async function lookupFromOpenLibrary(
       title?: string;
       authors?: { name: string }[];
       cover?: { medium?: string; large?: string };
+      number_of_pages?: number;
     }
   >;
   const entry = data[`ISBN:${isbn}`];
@@ -141,6 +142,7 @@ async function lookupFromOpenLibrary(
     author,
     isbn,
     cover_url: entry.cover?.medium ?? entry.cover?.large,
+    total_pages: entry.number_of_pages,
     source: "openlibrary",
   });
 }
@@ -157,12 +159,11 @@ export async function lookupBookByIsbn(
   const isbn = normalizeIsbn(rawIsbn);
   if (!isbn) return null;
 
-  const openlibrary = lookupFromOpenLibrary(isbn);
-
+  const openlibrary = await lookupFromOpenLibrary(isbn);
+  if (openlibrary) return openlibrary;
 
   const bibsys = await lookupFromBibsys(isbn);
   if (bibsys) return bibsys;
-
 
   return lookupFromNb(isbn);
 
