@@ -39,7 +39,15 @@
   --font-body: var(--font-source-serif);
 }
 
+html {
+  min-height: 100%;
+  background-color: var(--wood);
+}
+
 body {
+  min-height: 100vh;
+  margin: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   background-color: var(--wood);
   background-image:
     radial-gradient(circle at 10% 10%, rgba(201, 168, 76, 0.14), transparent 18%),
