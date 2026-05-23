@@ -64,12 +64,12 @@ export function AppNav() {
       </header>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-card/95 backdrop-blur-xl sm:hidden">
-        <nav className="safe-bottom-nav mx-auto flex max-w-4xl items-center justify-between gap-2 px-3 pt-2">
+        <nav className="safe-bottom-nav mx-auto flex max-w-4xl items-center justify-between gap-2 px-3 pt-3">
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`flex-1 rounded-2xl border px-3 py-3 text-center text-[0.82rem] font-semibold transition ${
+              className={`flex-1 rounded-2xl border px-3 py-2.5 text-center text-[0.82rem] font-semibold transition ${
                 pathname === link.href
                   ? "border-gold/25 bg-gold/10 text-gold"
                   : "border-white/10 bg-white/5 text-parchment-muted hover:border-gold/20 hover:bg-white/10 hover:text-parchment"
