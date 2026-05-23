@@ -2,7 +2,7 @@
 
 import type { ReadStatus } from "@home-library/shared";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useBookMutations, useBookQuery } from "@/hooks/use-books";
 
 const statusLabels: Record<ReadStatus, string> = {
@@ -16,6 +16,11 @@ export default function BookDetailPage() {
   const router = useRouter();
   const { data: book, isLoading } = useBookQuery(id);
   const { remove, updateReadStatus, moveToOwned } = useBookMutations();
+
+  const searchParams = useSearchParams();
+
+  const wasJustCreated =
+    searchParams.get("created") === "true";
 
   if (isLoading) return <p className="text-parchment-muted italic">Loading…</p>;
   if (!book) return <p className="text-danger">Volume not found.</p>;
@@ -34,6 +39,20 @@ export default function BookDetailPage() {
       >
         ← Return to shelves
       </Link>
+      {wasJustCreated && (
+        <div className="card p-4 flex flex-col gap-3 border-l-2 border-forest mt-2">
+          <p>
+            Volume added successfully!
+          </p>
+
+          <Link
+            href="/books/new?shelf=owned"
+            className="self-start text-sm px-3 py-1.5 rounded-md btn-primary"
+          >
+            Add another volume
+          </Link>
+        </div>
+      )}
       <div className="card flex gap-6 p-6">
         {book.cover_url ? (
           <img

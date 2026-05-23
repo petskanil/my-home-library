@@ -14,7 +14,7 @@ function NewBookForm() {
 
   async function handleSubmit(data: CreateBookInput) {
     const book = await create.mutateAsync(data);
-    router.push(`/books/${book.id}`);
+    router.push(`/books/${book.id}?created=true`);
   }
 
   return <BookForm defaultShelf={defaultShelf} onSubmit={handleSubmit} submitLabel="Catalogue volume" />;
