@@ -6,6 +6,13 @@ export const bookLookupResultSchema = z.object({
   isbn: z.string().min(10),
   cover_url: z.string().url().optional(),
   total_pages: z.number().int().positive().optional(),
+  publisher: z.string().optional(),
+  published_year: z.number().int().positive().optional(),
+  language: z.string().optional(),
+  series: z.string().optional(),
+  subjects: z.array(z.string()).optional(),
+  subtitle: z.string().optional(),
+  description: z.string().optional(),
   source: z.enum(["nb", "bibsys", "openlibrary", "merged"]),
   sources: z.array(z.enum(["nb", "bibsys", "openlibrary"]))?.optional(),
 });

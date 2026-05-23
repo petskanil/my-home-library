@@ -16,6 +16,11 @@ export const bookSchema = z.object({
   progress_percent: z.number().int().min(0).max(100).nullable(),
   total_pages: z.number().int().positive().nullable(),
   notes: z.string().nullable(),
+  publisher: z.string().nullable(),
+  published_year: z.number().int().positive().nullable(),
+  language: z.string().nullable(),
+  series: z.string().nullable(),
+  subjects: z.array(z.string()).nullable(),
   acquired_at: z.string().nullable(),
   finished_at: z.string().nullable(),
   created_at: z.string(),
@@ -27,6 +32,11 @@ const bookInputBaseSchema = z.object({
   author: z.string().min(1, "Author is required"),
   isbn: z.string().optional(),
   cover_url: z.string().url().optional().or(z.literal("")),
+  publisher: z.string().optional(),
+  published_year: z.number().int().positive().optional(),
+  language: z.string().optional(),
+  series: z.string().optional(),
+  subjects: z.array(z.string()).optional(),
   shelf: shelfSchema,
   read_status: readStatusSchema.optional(),
   progress_page: z.number().int().nonnegative().nullable().optional(),
@@ -76,11 +86,15 @@ export function normalizeCreateInput(
     ...input,
     isbn: input.isbn || undefined,
     cover_url: input.cover_url || undefined,
+    publisher: input.publisher || undefined,
+    published_year: input.published_year,
+    language: input.language || undefined,
+    series: input.series || undefined,
+    subjects: input.subjects,
     notes: input.notes || undefined,
     read_status,
   };
 }
-
 export type LibraryStats = {
   totalOwned: number;
   unread: number;

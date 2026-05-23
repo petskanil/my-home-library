@@ -23,6 +23,11 @@ type DbBook = {
   progress_page: number | null;
   progress_percent: number | null;
   total_pages: number | null;
+  publisher: string | null;
+  published_year: number | null;
+  language: string | null;
+  series: string | null;
+  subjects: string[] | null;
   notes: string | null;
   acquired_at: string | null;
   finished_at: string | null;
@@ -50,6 +55,11 @@ function toDbPayload(input: NormalizedBookInput, userId: string) {
     progress_page: input.progress_page ?? null,
     progress_percent: input.progress_percent ?? null,
     total_pages: input.total_pages ?? null,
+    publisher: input.publisher || null,
+    published_year: input.published_year ?? null,
+    language: input.language || null,
+    series: input.series || null,
+    subjects: input.subjects ?? null,
     notes: input.notes ?? null,
     acquired_at: input.acquired_at ?? null,
     finished_at: input.finished_at ?? null,
@@ -117,6 +127,11 @@ export async function updateBook(
   if (input.progress_page !== undefined) patch.progress_page = input.progress_page ?? null;
   if (input.progress_percent !== undefined) patch.progress_percent = input.progress_percent ?? null;
   if (input.total_pages !== undefined) patch.total_pages = input.total_pages ?? null;
+  if (input.publisher !== undefined) patch.publisher = input.publisher ?? null;
+  if (input.published_year !== undefined) patch.published_year = input.published_year ?? null;
+  if (input.language !== undefined) patch.language = input.language ?? null;
+  if (input.series !== undefined) patch.series = input.series ?? null;
+  if (input.subjects !== undefined) patch.subjects = input.subjects ?? null;
   if (input.notes !== undefined) patch.notes = input.notes ?? null;
   if (input.acquired_at !== undefined) patch.acquired_at = input.acquired_at ?? null;
   if (input.finished_at !== undefined) patch.finished_at = input.finished_at ?? null;

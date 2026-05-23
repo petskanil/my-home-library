@@ -26,6 +26,13 @@ export function BookForm({
   const [author, setAuthor] = useState(initial?.author ?? "");
   const [isbn, setIsbn] = useState(initial?.isbn ?? "");
   const [coverUrl, setCoverUrl] = useState(initial?.cover_url ?? "");
+  const [publisher, setPublisher] = useState(initial?.publisher ?? "");
+  const [publishedYear, setPublishedYear] = useState<number | undefined>(
+    initial?.published_year ?? undefined,
+  );
+  const [language, setLanguage] = useState(initial?.language ?? "");
+  const [series, setSeries] = useState(initial?.series ?? "");
+  const [subjects, setSubjects] = useState<string[]>(initial?.subjects ?? []);
   const [shelf, setShelf] = useState<Shelf>(initial?.shelf ?? defaultShelf);
   const [readStatus, setReadStatus] = useState(
     initial?.read_status ?? "unread",
@@ -49,6 +56,11 @@ export function BookForm({
     setAuthor(result.author);
     setIsbn(result.isbn);
     if (result.cover_url) setCoverUrl(result.cover_url);
+    if (result.publisher) setPublisher(result.publisher);
+    if (result.published_year !== undefined) setPublishedYear(result.published_year);
+    if (result.language) setLanguage(result.language);
+    if (result.series) setSeries(result.series);
+    if (result.subjects) setSubjects(result.subjects);
     if (result.total_pages !== undefined) setTotalPages(result.total_pages);
   }
 
@@ -108,6 +120,11 @@ export function BookForm({
       author,
       isbn: isbn || undefined,
       cover_url: coverUrl || undefined,
+      publisher: publisher || undefined,
+      published_year: publishedYear,
+      language: language || undefined,
+      series: series || undefined,
+      subjects: subjects.length ? subjects : undefined,
       shelf,
       read_status: shelf === "owned" ? readStatus : undefined,
       ...(shelf === "owned" && readStatus === "reading" && progressPage !== undefined

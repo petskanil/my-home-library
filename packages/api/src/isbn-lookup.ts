@@ -28,6 +28,12 @@ type PartialBookLookupResult = Partial<
   Omit<BookLookupResult, "source" | "sources">
 > & { source: BookLookupSource };
 
+function parsePublishedYear(publishDate?: string): number | undefined {
+  if (!publishDate) return undefined;
+  const match = publishDate.match(/\b(19|20)\d{2}\b/);
+  return match ? Number(match[0]) : undefined;
+}
+
 function formatAuthors(creators?: string[]): string | undefined {
   if (!creators?.length) return undefined;
   return creators.join(", ");
@@ -145,9 +151,16 @@ async function lookupFromOpenLibrary(
     string,
     {
       title?: string;
+      subtitle?: string;
       authors?: { name: string }[];
       cover?: { medium?: string; large?: string };
       number_of_pages?: number;
+      publishers?: { name?: string }[];
+      publish_date?: string;
+      languages?: { key?: string }[];
+      series?: string[];
+      subjects?: { name?: string }[] | string[];
+      description?: string | { value?: string };
     }
   >;
 
@@ -157,8 +170,35 @@ async function lookupFromOpenLibrary(
 
   const author =
     entry.authors?.map((a) => a.name).filter(Boolean).join(", ");
+  const publisher = entry.publishers
+    ?.map((p) => p.name)
+    .filter(Boolean)
+    .join(", ");
+  const published_year = parsePublishedYear(entry.publish_date);
+  const language = entry.languages
+    ?.map((lang) => lang.key?.split("/").pop())
+    .filter(Boolean)
+    .join(", ");
+  const series = entry.series?.[0];
+  const subjects = entry.subjects
+    ?.map((subject) =>
+      typeof subject === "string" ? subject : subject.name ?? undefined,
+    )
+    .filter((subject): subject is string => Boolean(subject));
+  const description =
+    typeof entry.description === "string"
+      ? entry.description
+      : entry.description?.value;
 
-  if (!entry.title && !author && !entry.cover && entry.number_of_pages === undefined) {
+  if (
+    !entry.title &&
+    !author &&
+    !entry.cover &&
+    entry.number_of_pages === undefined &&
+    !publisher &&
+    !published_year &&
+    !language
+  ) {
     return null;
   }
 
@@ -167,23 +207,56 @@ async function lookupFromOpenLibrary(
     title: entry.title,
     author,
     isbn,
-    cover_url: entry.cover?.medium ?? entry.cover?.large,
+    cover_url: entry.cover?.large ?? entry.cover?.medium,
     total_pages: entry.number_of_pages,
+    publisher,
+    published_year,
+    language,
+    series,
+    subjects,
+    subtitle: entry.subtitle,
+    description,
   };
 }
 
-function mergeLookupResults(
+async function fetchOpenLibraryCover(isbn: string): Promise<string | undefined> {
+  const isbn13 = isbn.length === 10 ? isbn10ToIsbn13(isbn) : isbn;
+  if (!isbn13) return undefined;
+
+  const url = `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg?default=false`;
+  const res = await fetch(url, { method: "HEAD" });
+  return res.ok ? url : undefined;
+}
+
+async function mergeLookupResults(
   isbn: string,
   results: PartialBookLookupResult[],
-): BookLookupResult | null {
+): Promise<BookLookupResult | null> {
   const title = results.find((result) => result.title)?.title;
   const author = results.find((result) => result.author)?.author;
-  const cover_url = results.find((result) => result.cover_url)?.cover_url;
+  let cover_url = results.find((result) => result.cover_url)?.cover_url;
   const total_pages = results.find(
     (result) => result.total_pages !== undefined,
   )?.total_pages;
+  const publisher = results.find((result) => result.publisher)?.publisher;
+  const published_year = results.find(
+    (result) => result.published_year !== undefined,
+  )?.published_year;
+  const language = results.find((result) => result.language)?.language;
+  const series = results.find((result) => result.series)?.series;
+  const subtitle = results.find((result) => result.subtitle)?.subtitle;
+  const description = results.find((result) => result.description)?.description;
+  const subjects = Array.from(
+    new Set(
+      results.flatMap((result) => result.subjects ?? []),
+    ),
+  );
 
   if (!title || !author) return null;
+
+  if (!cover_url) {
+    cover_url = await fetchOpenLibraryCover(isbn);
+  }
 
   const sources = Array.from(new Set(results.map((result) => result.source)));
   const source = sources.length > 1 ? "merged" : sources[0];
@@ -194,6 +267,13 @@ function mergeLookupResults(
     isbn,
     cover_url,
     total_pages,
+    publisher,
+    published_year,
+    language,
+    series,
+    subtitle,
+    description,
+    subjects: subjects.length ? subjects : undefined,
     source,
     sources,
   });
