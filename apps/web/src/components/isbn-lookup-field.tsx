@@ -38,14 +38,18 @@ export function IsbnLookupField({
                 ? "Nasjonalbiblioteket"
                 : body.source === "bibsys"
                   ? "Norbok"
-                  : "Open Library"
+                  : body.source === "merged"
+                    ? "multiple sources"
+                    : "Open Library"
             }. ${body.total_pages} pages.`
           : `Found via ${
               body.source === "nb"
                 ? "Nasjonalbiblioteket"
                 : body.source === "bibsys"
                   ? "Norbok"
-                  : "Open Library"
+                  : body.source === "merged"
+                    ? "multiple sources"
+                    : "Open Library"
             }`,
       );
     } catch {

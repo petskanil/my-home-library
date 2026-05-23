@@ -1,5 +1,6 @@
 import {
   bookLookupResultSchema,
+  isbn10ToIsbn13,
   normalizeIsbn,
   type BookLookupResult,
 } from "@home-library/shared";
@@ -8,6 +9,8 @@ const NB_ITEMS = "https://api.nb.no/catalog/v1/items";
 const BIBSYS_SRU =
   "https://bibsys.alma.exlibrisgroup.com/view/sru/47BIBSYS_NETWORK";
 const OPEN_LIBRARY = "https://openlibrary.org/api/books";
+
+type BookLookupSource = "nb" | "bibsys" | "openlibrary";
 
 type NbItem = {
   metadata?: {
@@ -21,8 +24,12 @@ type NbItem = {
   };
 };
 
-function formatAuthors(creators?: string[]): string {
-  if (!creators?.length) return "Unknown author";
+type PartialBookLookupResult = Partial<
+  Omit<BookLookupResult, "source" | "sources">
+> & { source: BookLookupSource };
+
+function formatAuthors(creators?: string[]): string | undefined {
+  if (!creators?.length) return undefined;
   return creators.join(", ");
 }
 
@@ -40,7 +47,7 @@ function isbnMatches(identifiers: string[] | undefined, isbn: string): boolean {
   return identifiers.some((id) => normalizeIsbn(id) === norm);
 }
 
-async function lookupFromNb(isbn: string): Promise<BookLookupResult | null> {
+async function lookupFromNb(isbn: string): Promise<PartialBookLookupResult | null> {
   const url = new URL(NB_ITEMS);
   url.searchParams.set("q", `${isbn} mediatype:bøker`);
   url.searchParams.set("size", "5");
@@ -57,16 +64,21 @@ async function lookupFromNb(isbn: string): Promise<BookLookupResult | null> {
   const item =
     items.find((i) => isbnMatches(i.metadata?.identifiers?.isbn13, isbn)) ??
     items[0];
+  if (!item) return null;
 
-  if (!item?.metadata?.title) return null;
+  const title = item.metadata?.title;
+  const author = formatAuthors(item.metadata?.creators);
+  const cover_url = resolveNbCover(item);
 
-  return bookLookupResultSchema.parse({
-    title: item.metadata.title,
-    author: formatAuthors(item.metadata.creators),
-    isbn,
-    cover_url: resolveNbCover(item),
+  if (!title && !author && !cover_url) return null;
+
+  return {
     source: "nb",
-  });
+    title,
+    author,
+    isbn,
+    cover_url,
+  };
 }
 
 function marcSubfield(xml: string, tag: string, code: string): string | null {
@@ -82,7 +94,7 @@ function marcSubfield(xml: string, tag: string, code: string): string | null {
 
 async function lookupFromBibsys(
   isbn: string,
-): Promise<BookLookupResult | null> {
+): Promise<PartialBookLookupResult | null> {
   if (isbn.length !== 13) return null;
 
   const url = new URL(BIBSYS_SRU);
@@ -105,20 +117,27 @@ async function lookupFromBibsys(
     marcSubfield(xml, "100", "a") ??
     marcSubfield(xml, "700", "a");
 
-  if (!title || !author) return null;
+  if (!title && !author) return null;
 
-  return bookLookupResultSchema.parse({
-    title,
-    author,
-    isbn,
+  return {
     source: "bibsys",
-  });
+    title: title ?? undefined,
+    author: author ?? undefined,
+    isbn,
+  };
 }
 
 async function lookupFromOpenLibrary(
   isbn: string,
-): Promise<BookLookupResult | null> {
-  const url = `${OPEN_LIBRARY}?bibkeys=ISBN:${isbn}&format=json&jscmd=data`;
+): Promise<PartialBookLookupResult | null> {
+  const isbn13 = isbn.length === 10 ? isbn10ToIsbn13(isbn) : isbn;
+  const bibkeys = isbn13 && isbn.length === 10
+    ? `ISBN:${isbn},ISBN:${isbn13}`
+    : `ISBN:${isbn}`;
+
+  const url = `${OPEN_LIBRARY}?bibkeys=${encodeURIComponent(
+    bibkeys,
+  )}&format=json&jscmd=data`;
   const res = await fetch(url);
   if (!res.ok) return null;
 
@@ -131,27 +150,58 @@ async function lookupFromOpenLibrary(
       number_of_pages?: number;
     }
   >;
-  const entry = data[`ISBN:${isbn}`];
-  if (!entry?.title) return null;
+
+  const entry = data[`ISBN:${isbn}`] ??
+    (isbn13 ? data[`ISBN:${isbn13}`] : undefined);
+  if (!entry) return null;
 
   const author =
-    entry.authors?.map((a) => a.name).join(", ") || "Unknown author";
+    entry.authors?.map((a) => a.name).filter(Boolean).join(", ");
 
-  return bookLookupResultSchema.parse({
+  if (!entry.title && !author && !entry.cover && entry.number_of_pages === undefined) {
+    return null;
+  }
+
+  return {
+    source: "openlibrary",
     title: entry.title,
     author,
     isbn,
     cover_url: entry.cover?.medium ?? entry.cover?.large,
     total_pages: entry.number_of_pages,
-    source: "openlibrary",
+  };
+}
+
+function mergeLookupResults(
+  isbn: string,
+  results: PartialBookLookupResult[],
+): BookLookupResult | null {
+  const title = results.find((result) => result.title)?.title;
+  const author = results.find((result) => result.author)?.author;
+  const cover_url = results.find((result) => result.cover_url)?.cover_url;
+  const total_pages = results.find(
+    (result) => result.total_pages !== undefined,
+  )?.total_pages;
+
+  if (!title || !author) return null;
+
+  const sources = Array.from(new Set(results.map((result) => result.source)));
+  const source = sources.length > 1 ? "merged" : sources[0];
+
+  return bookLookupResultSchema.parse({
+    title,
+    author,
+    isbn,
+    cover_url,
+    total_pages,
+    source,
+    sources,
   });
 }
 
 /**
- * Look up book metadata by ISBN. Optimized for Norwegian books:
- * 1. Nasjonalbiblioteket (api.nb.no)
- * 2. BIBSYS / Norbok (national bibliography)
- * 3. Open Library (fallback)
+ * Look up book metadata by ISBN. Combines data from all available sources,
+ * using each source to fill gaps for the richest possible result.
  */
 export async function lookupBookByIsbn(
   rawIsbn: string,
@@ -159,12 +209,16 @@ export async function lookupBookByIsbn(
   const isbn = normalizeIsbn(rawIsbn);
   if (!isbn) return null;
 
-  const openlibrary = await lookupFromOpenLibrary(isbn);
-  if (openlibrary) return openlibrary;
+  const [openlibrary, bibsys, nb] = await Promise.all([
+    lookupFromOpenLibrary(isbn).catch(() => null),
+    lookupFromBibsys(isbn).catch(() => null),
+    lookupFromNb(isbn).catch(() => null),
+  ]);
 
-  const bibsys = await lookupFromBibsys(isbn);
-  if (bibsys) return bibsys;
+  const results = [openlibrary, bibsys, nb].filter(
+    (result): result is PartialBookLookupResult => Boolean(result),
+  );
 
-  return lookupFromNb(isbn);
-
+  if (!results.length) return null;
+  return mergeLookupResults(isbn, results);
 }
