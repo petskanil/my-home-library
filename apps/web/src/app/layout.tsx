@@ -43,6 +43,10 @@ export default function RootLayout({
           name="apple-mobile-web-app-status-bar-style"
           content="black-translucent"
         />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
         <meta name="apple-mobile-web-app-title" content="Home Library" />
         <meta name="theme-color" content="#1c1814" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />

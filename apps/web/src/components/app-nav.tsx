@@ -24,7 +24,7 @@ export function AppNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-card/95 backdrop-blur-3xl shadow-[0_24px_80px_-48px_rgba(0,0,0,0.8)]">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-card/95 backdrop-blur-xl shadow-[0_24px_80px_-48px_rgba(0,0,0,0.8)]">
         <div className="max-w-4xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
           <Link
             href="/"
@@ -63,13 +63,13 @@ export function AppNav() {
         </div>
       </header>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-card/95 backdrop-blur-3xl sm:hidden ios-home-indicator safe-bottom-nav">
-        <nav className="mx-auto flex max-w-4xl items-center justify-between px-3 pt-3 gap-2">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-card/95 backdrop-blur-xl sm:hidden">
+        <nav className="safe-bottom-nav mx-auto flex max-w-4xl items-center justify-between gap-2 px-3 pt-3">
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`flex-1 rounded-3xl border px-3 py-3 text-center text-[0.82rem] font-semibold transition ${
+              className={`flex-1 rounded-2xl border px-3 py-3 text-center text-[0.82rem] font-semibold transition ${
                 pathname === link.href
                   ? "border-gold/25 bg-gold/10 text-gold"
                   : "border-white/10 bg-white/5 text-parchment-muted hover:border-gold/20 hover:bg-white/10 hover:text-parchment"
