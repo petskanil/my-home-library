@@ -56,7 +56,7 @@ export default function IsbnScanner({ onScan, onClose }: IsbnScannerProps) {
         const codeReader = new BrowserMultiFormatReader();
         readerRef.current = codeReader;
         if (videoRef.current) {
-          codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result: any, err: any) => {
+          codeReader.decodeFromVideoDevice(null, videoRef.current, (result: any, err: any) => {
             if (result) {
               onScan(result.getText());
             }

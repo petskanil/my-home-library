@@ -9,8 +9,8 @@ import {
   setReadStatus,
   updateBook,
 } from "@home-library/api";
-import type { CreateBookInput, ReadStatus } from "@home-library/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Book, CreateBookInput, ReadStatus } from "@home-library/shared";
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 
 const BOOKS_KEY = ["books"] as const;
@@ -19,16 +19,15 @@ function getClient() {
   return createClient();
 }
 
-export function useBooksQuery() {
-  return useQuery({
+export function useBooksQuery(): UseQueryResult<Book[], Error> {
+  return useQuery<Book[], Error, Book[]>({
     queryKey: BOOKS_KEY,
     queryFn: () => listBooks(getClient()),
-    onError: (err) => console.error("books query error:", err),
   });
 }
 
-export function useBookQuery(id: string) {
-  return useQuery({
+export function useBookQuery(id: string): UseQueryResult<Book | null, Error> {
+  return useQuery<Book | null, Error, Book | null>({
     queryKey: [...BOOKS_KEY, id],
     queryFn: () => getBook(getClient(), id),
     enabled: !!id,
