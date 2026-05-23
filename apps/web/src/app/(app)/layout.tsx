@@ -22,7 +22,7 @@ export default function AppLayout({
   return (
     <QueryClientProvider client={queryClient}>
       <AppNav />
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 pb-28 sm:pb-10">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 pb-28 sm:pb-10 app-shell">
         {children}
       </main>
     </QueryClientProvider>
