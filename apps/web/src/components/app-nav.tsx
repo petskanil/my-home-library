@@ -64,7 +64,7 @@ export function AppNav() {
       </header>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-card/95 backdrop-blur-xl sm:hidden">
-        <nav className="safe-bottom-nav mx-auto flex max-w-4xl items-center justify-between gap-2 px-3 pt-3">
+        <nav className="safe-bottom-nav mx-auto flex max-w-4xl items-center justify-between gap-2 px-3 pt-2">
           {links.map((link) => (
             <Link
               key={link.href}

@@ -164,10 +164,7 @@ main.app-shell::before {
 
 .safe-bottom-nav {
   padding-bottom:
-    max(env(safe-area-inset-bottom), 0.75rem);
-
-  background:
-    rgba(33, 31, 27, 0.92);
+    calc(env(safe-area-inset-bottom, 0px) + 0.85rem);
 }
 
 .glass-panel {
