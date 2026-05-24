@@ -13,8 +13,8 @@ export const bookLookupResultSchema = z.object({
   subjects: z.array(z.string()).optional(),
   subtitle: z.string().optional(),
   description: z.string().optional(),
-  source: z.enum(["nb", "bibsys", "openlibrary", "merged"]),
-  sources: z.array(z.enum(["nb", "bibsys", "openlibrary"]))?.optional(),
+  source: z.enum(["nb", "bibsys", "openlibrary",  "googlebooks", "internetarchive", "merged"]),
+  sources: z.array(z.enum(["nb", "bibsys", "openlibrary", "googlebooks", "internetarchive"]))?.optional(),
 });
 
 export type BookLookupResult = z.infer<typeof bookLookupResultSchema>;

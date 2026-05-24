@@ -33,5 +33,11 @@ export async function lookupBookByIsbn(
   );
 
   if (!results.length) return null;
-  return mergeLookupResults(isbn, results);
+  
+  try {
+    return await mergeLookupResults(isbn, results);
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
 }

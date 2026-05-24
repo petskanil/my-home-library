@@ -5,30 +5,28 @@ import type {
 const INTERNET_ARCHIVE_API =
   "https://archive.org/advancedsearch.php";
 
-type InternetArchiveResponse = {
-  response?: {
-    docs?: Array<{
-      title?: string;
-      creator?: string | string[];
-      description?: string;
-      language?: string | string[];
-      publisher?: string;
-      year?: number;
-      identifier?: string;
-    }>;
-  };
-};
-
-function firstValue(
-  value?: string | string[],
-): string | undefined {
-  if (!value) {
-    return undefined;
+function firstString(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value;
   }
 
-  return Array.isArray(value)
-    ? value[0]
-    : value;
+  if (Array.isArray(value)) {
+    const first = value.find(
+      (item) => typeof item === "string",
+    );
+
+    return typeof first === "string"
+      ? first
+      : undefined;
+  }
+
+  return undefined;
+}
+
+function safeNumber(value: unknown): number | undefined {
+  return typeof value === "number"
+    ? value
+    : undefined;
 }
 
 export async function lookupFromInternetArchive(
@@ -58,29 +56,64 @@ export async function lookupFromInternetArchive(
       return null;
     }
 
-    const data =
-      (await res.json()) as InternetArchiveResponse;
+    const text = await res.text();
 
-    const doc = data.response?.docs?.[0];
+    let data: any;
 
-    if (!doc) {
+    try {
+      data = JSON.parse(text);
+    } catch {
       return null;
     }
 
-    const identifier = firstValue(doc.identifier);
+    const docs = Array.isArray(data?.response?.docs)
+      ? data.response.docs
+      : [];
+
+    const doc = docs[0];
+
+    if (!doc || typeof doc !== "object") {
+      return null;
+    }
+
+    const title = firstString(doc.title);
+
+    const author = firstString(doc.creator);
+
+    const description =
+      typeof doc.description === "string"
+        ? doc.description
+        : firstString(doc.description?.value);
+
+    const language = firstString(doc.language);
+
+    const publisher = firstString(doc.publisher);
+
+    const published_year = safeNumber(doc.year);
+
+    const identifier = firstString(doc.identifier);
 
     const cover_url = identifier
       ? `https://archive.org/download/${identifier}/page/n1_w360.jpg`
       : undefined;
 
+    if (
+      !title &&
+      !author &&
+      !description &&
+      !cover_url
+    ) {
+      return null;
+    }
+
     return {
       source: "internetarchive",
-      title: doc.title,
-      author: firstValue(doc.creator),
-      description: doc.description,
-      language: firstValue(doc.language),
-      publisher: doc.publisher,
-      published_year: doc.year,
+      title,
+      author,
+      description,
+      language,
+      publisher,
+      published_year,
       isbn,
       cover_url,
     };
