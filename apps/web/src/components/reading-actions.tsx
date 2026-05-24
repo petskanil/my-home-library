@@ -27,7 +27,9 @@ export function ReadingActions({
   function handlePageChange(value: string) {
     const pageNumber = value ? Number(value) : undefined;
     setPage(value);
+    console.log("handlePageChange", { pageNumber, totalPages: book.total_pages });
     if (pageNumber !== undefined && book.total_pages != null && book.total_pages > 0) {
+        console.log(book.total_pages)
       setPercent(String(computePercent(pageNumber, book.total_pages)));
     } else {
       setPercent("");
