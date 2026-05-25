@@ -4,14 +4,102 @@ import {
 } from "@home-library/shared";
 
 import { resolveCoverUrl } from "../covers/resolve-cover-url";
-import { PartialBookLookupResult } from "../shared/types";
 
-function orderBySources(
+import {
+  PartialBookLookupResult,
+} from "../shared/types";
+
+const FIELD_PRIORITIES = {
+  title: [
+    "nb",
+    "bibsys",
+    "googlebooks",
+    "openlibrary",
+    "internetarchive",
+  ],
+
+  author: [
+    "nb",
+    "bibsys",
+    "googlebooks",
+    "openlibrary",
+    "internetarchive",
+  ],
+
+  description: [
+    "googlebooks",
+    "openlibrary",
+    "internetarchive",
+    "nb",
+    "bibsys",
+  ],
+
+  cover_url: [
+    "googlebooks",
+    "openlibrary",
+    "nb",
+    "internetarchive",
+    "bibsys",
+  ],
+} as const;
+
+function sortByConfidence(
   results: PartialBookLookupResult[],
-  sources: PartialBookLookupResult["source"][],
 ): PartialBookLookupResult[] {
-  return sources.flatMap((source) =>
-    results.filter((result) => result.source === source),
+  return [...results].sort((a, b) => {
+    const confidenceDiff =
+      (b.confidence ?? 0) -
+      (a.confidence ?? 0);
+
+    if (confidenceDiff !== 0) {
+      return confidenceDiff;
+    }
+
+    // Exact matches win ties
+    if (
+      a.exact_match &&
+      !b.exact_match
+    ) {
+      return -1;
+    }
+
+    if (
+      b.exact_match &&
+      !a.exact_match
+    ) {
+      return 1;
+    }
+
+    return 0;
+  });
+}
+
+function sortByPriority(
+  results: PartialBookLookupResult[],
+  priorities: readonly string[],
+): PartialBookLookupResult[] {
+  return priorities.flatMap(
+    (priority) =>
+      results.filter(
+        (result) =>
+          result.source ===
+          priority,
+      ),
+  );
+}
+
+function prioritizeField(
+  field:
+    keyof typeof FIELD_PRIORITIES,
+  results: PartialBookLookupResult[],
+): PartialBookLookupResult[] {
+  return sortByConfidence(
+    sortByPriority(
+      results,
+      FIELD_PRIORITIES[
+        field
+      ],
+    ),
   );
 }
 
@@ -24,12 +112,16 @@ function pickFirst<T>(
   return results
     .map(selector)
     .find((value) => {
-      if (value === undefined || value === null) {
+      if (
+        value === undefined ||
+        value === null
+      ) {
         return false;
       }
 
       if (
-        typeof value === "string" &&
+        typeof value ===
+          "string" &&
         !value.trim()
       ) {
         return false;
@@ -45,8 +137,14 @@ function mergeSubjects(
   const subjects = Array.from(
     new Set(
       results
-        .flatMap((result) => result.subjects ?? [])
-        .map((subject) => subject.trim())
+        .flatMap(
+          (result) =>
+            result.subjects ??
+            [],
+        )
+        .map((subject) =>
+          subject.trim(),
+        )
         .filter(Boolean),
     ),
   );
@@ -56,104 +154,221 @@ function mergeSubjects(
     : undefined;
 }
 
+function pickMostCommon<T>(
+  values: (
+    | T
+    | undefined
+  )[],
+): T | undefined {
+  const counts = new Map<
+    T,
+    number
+  >();
+
+  for (const value of values) {
+    if (
+      value === undefined ||
+      value === null
+    ) {
+      continue;
+    }
+
+    counts.set(
+      value,
+      (counts.get(value) ??
+        0) + 1,
+    );
+  }
+
+  let best:
+    | T
+    | undefined;
+
+  let highest = 0;
+
+  for (const [
+    value,
+    count,
+  ] of counts.entries()) {
+    if (count > highest) {
+      best = value;
+      highest = count;
+    }
+  }
+
+  return best;
+}
+
 export async function mergeLookupResults(
   isbn: string,
   results: PartialBookLookupResult[],
 ): Promise<BookLookupResult | null> {
-  const defaultPriority = orderBySources(results, [
-    "bibsys",
-    "nb",
-    "googlebooks",
-    "openlibrary",
-    "internetarchive",
-  ]);
-
-  const title = pickFirst(
-    defaultPriority,
-    (result) => result.title,
-  );
-
-  const author = pickFirst(
-    defaultPriority,
-    (result) => result.author,
-  );
-
-  if (!title || !author) {
+  if (!results.length) {
     return null;
   }
 
-  const cover_url = await resolveCoverUrl(
-    isbn,
-    results,
-  );
-
-  const total_pages = pickFirst(
-    defaultPriority,
-    (result) => result.total_pages,
-  );
-
-  const publisher = pickFirst(
-    defaultPriority,
-    (result) => result.publisher,
-  );
-
-  const published_year = pickFirst(
-    defaultPriority,
-    (result) => result.published_year,
-  );
-
-  const language = pickFirst(
-    defaultPriority,
-    (result) => result.language,
-  );
-
-  const series = pickFirst(
-    defaultPriority,
-    (result) => result.series,
-  );
-
-  const subtitle = pickFirst(
-    defaultPriority,
-    (result) => result.subtitle,
-  );
-
-  const description = pickFirst(
-    defaultPriority,
-    (result) => result.description,
-  )?.slice(0, 5000);
-
-  const subjects = mergeSubjects(
-    defaultPriority,
-  );
-
-  const sources = Array.from(
-    new Set(
-      results.map((result) => result.source),
+  const title = pickFirst(
+    prioritizeField(
+      "title",
+      results,
     ),
+    (result) =>
+      result.title,
   );
+
+  if (!title) {
+    return null;
+  }
+
+  const author = pickFirst(
+    prioritizeField(
+      "author",
+      results,
+    ),
+    (result) =>
+      result.author,
+  );
+
+  const description =
+    pickFirst(
+      prioritizeField(
+        "description",
+        results,
+      ),
+      (result) =>
+        result.description,
+    )?.slice(0, 5000);
+
+  const cover_url =
+    await resolveCoverUrl(
+      isbn,
+      prioritizeField(
+        "cover_url",
+        results,
+      ),
+    );
+
+  const subtitle =
+    pickFirst(
+      sortByConfidence(
+        results,
+      ),
+      (result) =>
+        result.subtitle,
+    );
+
+  const total_pages =
+    pickMostCommon(
+      results.map(
+        (result) =>
+          result.total_pages,
+      ),
+    );
+
+  const publisher =
+    pickMostCommon(
+      results.map(
+        (result) =>
+          result.publisher,
+      ),
+    );
+
+  const published_year =
+    pickMostCommon(
+      results.map(
+        (result) =>
+          result.published_year,
+      ),
+    );
+
+  const language =
+    pickMostCommon(
+      results.map(
+        (result) =>
+          result.language,
+      ),
+    );
+
+  const series =
+    pickFirst(
+      sortByConfidence(
+        results,
+      ),
+      (result) =>
+        result.series,
+    );
+
+  const subjects =
+    mergeSubjects(results);
+
+  const sources =
+    Array.from(
+      new Set(
+        results.map(
+          (result) =>
+            result.source,
+        ),
+      ),
+    );
 
   const source =
     sources.length > 1
       ? "merged"
       : sources[0];
 
+  // Optional debugging
+  console.log({
+    isbn,
+
+    totalResults:
+      results.length,
+
+    exactMatches:
+      results.filter(
+        (result) =>
+          result.exact_match,
+      ).length,
+
+    fuzzyMatches:
+      results.filter(
+        (result) =>
+          !result.exact_match,
+      ).length,
+
+    sources,
+  });
+
   const parsed =
-    bookLookupResultSchema.safeParse({
-      title,
-      author,
-      isbn,
-      cover_url,
-      total_pages,
-      publisher,
-      published_year,
-      language,
-      series,
-      subtitle,
-      description,
-      subjects,
-      source,
-      sources,
-    });
+    bookLookupResultSchema.safeParse(
+      {
+        title,
+        author,
+
+        isbn,
+
+        subtitle,
+
+        cover_url,
+
+        total_pages,
+
+        publisher,
+
+        published_year,
+
+        language,
+
+        series,
+
+        description,
+
+        subjects,
+
+        source,
+
+        sources,
+      },
+    );
 
   if (!parsed.success) {
     console.error(

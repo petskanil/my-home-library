@@ -2,42 +2,93 @@ import {
   normalizeIsbn,
   type BookLookupResult,
 } from "@home-library/shared";
-import {  PartialBookLookupResult } from "./shared/types";
-import { lookupFromOpenLibrary } from "./providers/openlibrary";
-import { lookupFromGoogleBooks } from "./providers/googlebooks";
-import { lookupFromBibsys } from "./providers/bibsys";
-import { lookupFromInternetArchive } from "./providers/internetarchive";
-import { lookupFromNb } from "./providers/nb";
-import { mergeLookupResults } from "./merge/merge-lookup-results";
 
-/**
- * Look up book metadata by ISBN. Combines data from all available sources,
- * using each source to fill gaps for the richest possible result.
- */
+import { mergeLookupResults } from "./merge/merge-lookup-results";
+import { discoverRelatedIsbns } from "./lookup/discover-related-isbns";
+import { lookupAllProviders } from "./lookup/lookup-all-providers";
+import { lookupRelatedEditions } from "./lookup/lookup-related-editions";
+import { expandFuzzyEditions } from "./lookup/expand-fuzzy-editions";
+import { searchOpenLibraryBroad } from "./providers/openlibrary-broad-search";
+import { discoverNearbyQueries } from "./lookup/discover-nearby-isbns";
+import { isbnSimilarity } from "./shared/isbn-similarity";
+
 export async function lookupBookByIsbn(
   rawIsbn: string,
 ): Promise<BookLookupResult | null> {
   const isbn = normalizeIsbn(rawIsbn);
-  if (!isbn) return null;
 
-  const [googlebooks, openlibrary, bibsys, internetarchive, nb] = await Promise.all([
-    lookupFromGoogleBooks(isbn).catch(() => null),
-    lookupFromOpenLibrary(isbn).catch(() => null),
-    lookupFromBibsys(isbn).catch(() => null),
-    lookupFromInternetArchive(isbn).catch(() => null),
-    lookupFromNb(isbn).catch(() => null),
-  ]);
-
-  const results = [googlebooks, openlibrary, bibsys, internetarchive, nb].filter(
-    (result): result is PartialBookLookupResult => Boolean(result),
-  );
-
-  if (!results.length) return null;
-  
-  try {
-    return await mergeLookupResults(isbn, results);
-  } catch (error) {
-    console.error(error);
+  if (!isbn) {
     return null;
   }
+
+const primaryResults =
+  await lookupAllProviders(
+    isbn,
+  );
+
+if (!primaryResults.length) {
+  const nearbyQueries =
+  discoverNearbyQueries(
+    isbn,
+  );
+
+const broadResults =
+  (
+    await Promise.all(
+      nearbyQueries.map(
+        searchOpenLibraryBroad,
+      ),
+    )
+  )
+    .flat()
+    .filter((result) => {
+      const related =
+        result.related_isbns ??
+        [];
+
+      return related.some(
+        (candidate) =>
+          isbnSimilarity(
+            isbn,
+            candidate,
+          ) >= 0.7,
+      );
+    });
+
+primaryResults.push(
+  ...broadResults,
+);
+}
+
+
+const relatedIsbns =
+  discoverRelatedIsbns(
+    primaryResults,
+  );
+
+
+const relatedResults =
+  await lookupRelatedEditions(
+    isbn,
+    relatedIsbns,
+  );
+
+
+const fuzzyResults =
+  await expandFuzzyEditions([
+    ...primaryResults,
+    ...relatedResults,
+  ]);
+
+const merged =
+  await mergeLookupResults(
+    isbn,
+    [
+      ...primaryResults,
+      ...relatedResults,
+      ...fuzzyResults,
+    ],
+  );
+
+  return merged;
 }

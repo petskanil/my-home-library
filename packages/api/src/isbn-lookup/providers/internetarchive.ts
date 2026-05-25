@@ -1,3 +1,5 @@
+import { dedupeIsbns } from "../shared/isbn";
+
 import type {
   PartialBookLookupResult,
 } from "../shared/types";
@@ -5,28 +7,135 @@ import type {
 const INTERNET_ARCHIVE_API =
   "https://archive.org/advancedsearch.php";
 
-function firstString(value: unknown): string | undefined {
+type InternetArchiveDoc = {
+  title?: unknown;
+
+  creator?: unknown;
+
+  description?: unknown;
+
+  language?: unknown;
+
+  publisher?: unknown;
+
+  year?: unknown;
+
+  identifier?: unknown;
+
+  isbn?: unknown;
+
+  subject?: unknown;
+};
+
+type InternetArchiveResponse = {
+  response?: {
+    docs?: InternetArchiveDoc[];
+  };
+};
+
+function firstString(
+  value: unknown,
+): string | undefined {
   if (typeof value === "string") {
-    return value;
+    return value.trim() || undefined;
   }
 
   if (Array.isArray(value)) {
     const first = value.find(
-      (item) => typeof item === "string",
+      (item) =>
+        typeof item === "string" &&
+        item.trim(),
     );
 
     return typeof first === "string"
-      ? first
+      ? first.trim()
       : undefined;
   }
 
   return undefined;
 }
 
-function safeNumber(value: unknown): number | undefined {
-  return typeof value === "number"
-    ? value
+function stringArray(
+  value: unknown,
+): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const values = value
+    .filter(
+      (item): item is string =>
+        typeof item === "string",
+    )
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return values.length
+    ? values
     : undefined;
+}
+
+function safeNumber(
+  value: unknown,
+): number | undefined {
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (
+    typeof value === "string" &&
+    /^\\d+$/.test(value)
+  ) {
+    return Number(value);
+  }
+
+  return undefined;
+}
+
+function cleanDescription(
+  description?: string,
+): string | undefined {
+  if (!description) {
+    return undefined;
+  }
+
+  return description
+    .replace(/\\s+/g, " ")
+    .trim()
+    .slice(0, 5000);
+}
+
+function extractRelatedIsbns(
+  value: unknown,
+): string[] {
+  if (!value) {
+    return [];
+  }
+
+  const raw = Array.isArray(value)
+    ? value
+    : [value];
+
+  return dedupeIsbns(
+    raw
+      .filter(
+        (item): item is string =>
+          typeof item === "string",
+      )
+      .map((isbn) =>
+        isbn.replace(/[^0-9X]/gi, ""),
+      ),
+  );
+}
+
+function resolveCoverUrl(
+  identifier?: string,
+): string | undefined {
+  if (!identifier) {
+    return undefined;
+  }
+
+  return `https://archive.org/download/${identifier}/page/n1_w360.jpg`;
 }
 
 export async function lookupFromInternetArchive(
@@ -35,6 +144,7 @@ export async function lookupFromInternetArchive(
   try {
     const params = new URLSearchParams({
       q: `isbn:${isbn}`,
+
       fl: [
         "title",
         "creator",
@@ -43,8 +153,12 @@ export async function lookupFromInternetArchive(
         "publisher",
         "year",
         "identifier",
+        "isbn",
+        "subject",
       ].join(","),
+
       rows: "1",
+
       output: "json",
     });
 
@@ -56,66 +170,104 @@ export async function lookupFromInternetArchive(
       return null;
     }
 
-    const text = await res.text();
+    const data =
+      (await res.json()) as InternetArchiveResponse;
 
-    let data: any;
-
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return null;
-    }
-
-    const docs = Array.isArray(data?.response?.docs)
+    const docs = Array.isArray(
+      data?.response?.docs,
+    )
       ? data.response.docs
       : [];
 
     const doc = docs[0];
 
-    if (!doc || typeof doc !== "object") {
+    if (!doc) {
       return null;
     }
 
-    const title = firstString(doc.title);
+    const title = firstString(
+      doc.title,
+    );
 
-    const author = firstString(doc.creator);
+    if (!title) {
+      return null;
+    }
+
+    const author = firstString(
+      doc.creator,
+    );
 
     const description =
-      typeof doc.description === "string"
-        ? doc.description
-        : firstString(doc.description?.value);
+      cleanDescription(
+        typeof doc.description ===
+          "string"
+          ? doc.description
+          : firstString(
+              (
+                doc.description as {
+                  value?: unknown;
+                }
+              )?.value,
+            ),
+      );
 
-    const language = firstString(doc.language);
+    const language = firstString(
+      doc.language,
+    );
 
-    const publisher = firstString(doc.publisher);
+    const publisher = firstString(
+      doc.publisher,
+    );
 
-    const published_year = safeNumber(doc.year);
+    const published_year = safeNumber(
+      doc.year,
+    );
 
-    const identifier = firstString(doc.identifier);
+    const provider_id = firstString(
+      doc.identifier,
+    );
 
-    const cover_url = identifier
-      ? `https://archive.org/download/${identifier}/page/n1_w360.jpg`
-      : undefined;
+    const subjects = stringArray(
+      doc.subject,
+    );
 
-    if (
-      !title &&
-      !author &&
-      !description &&
-      !cover_url
-    ) {
-      return null;
-    }
+    const related_isbns =
+      extractRelatedIsbns(doc.isbn);
+
+    const exact_match =
+      related_isbns.includes(isbn);
 
     return {
       source: "internetarchive",
-      title,
-      author,
-      description,
-      language,
-      publisher,
-      published_year,
+
       isbn,
-      cover_url,
+
+      related_isbns,
+
+      exact_match,
+
+      confidence: exact_match
+        ? 0.9
+        : 0.65,
+
+      provider_id,
+
+      title,
+
+      author,
+
+      description,
+
+      language,
+
+      publisher,
+
+      published_year,
+
+      subjects,
+
+      cover_url:
+        resolveCoverUrl(provider_id),
     };
   } catch {
     return null;

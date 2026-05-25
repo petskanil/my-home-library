@@ -1,8 +1,8 @@
 import {
   isbn10ToIsbn13,
-  type BookLookupResult,
 } from "@home-library/shared";
 
+import { dedupeIsbns } from "../shared/isbn";
 import type {
   PartialBookLookupResult,
 } from "../shared/types";
@@ -13,16 +13,30 @@ const GOOGLE_BOOKS =
 type GoogleBooksResponse = {
   items?: Array<{
     id?: string;
+
     volumeInfo?: {
       title?: string;
       subtitle?: string;
+
       authors?: string[];
+
       description?: string;
+
       pageCount?: number;
+
       publishedDate?: string;
+
       language?: string;
+
       categories?: string[];
+
       publisher?: string;
+
+      industryIdentifiers?: Array<{
+        type?: string;
+        identifier?: string;
+      }>;
+
       imageLinks?: {
         smallThumbnail?: string;
         thumbnail?: string;
@@ -30,6 +44,14 @@ type GoogleBooksResponse = {
         medium?: string;
         large?: string;
         extraLarge?: string;
+      };
+
+      seriesInfo?: {
+        bookDisplayNumber?: string;
+        volumeSeries?: Array<{
+          seriesId?: string;
+          orderNumber?: number;
+        }>;
       };
     };
   }>;
@@ -42,9 +64,69 @@ function parsePublishedYear(
     return undefined;
   }
 
-  const match = publishedDate.match(/\b(19|20)\d{2}\b/);
+  const match = publishedDate.match(
+    /\b(19|20)\d{2}\b/,
+  );
 
-  return match ? Number(match[0]) : undefined;
+  return match
+    ? Number(match[0])
+    : undefined;
+}
+
+function cleanDescription(
+  description?: string,
+): string | undefined {
+  if (!description) {
+    return undefined;
+  }
+
+  return description
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 5000);
+}
+
+function resolveCoverUrl(
+  itemId?: string,
+  imageLinks?: {
+    smallThumbnail?: string;
+    thumbnail?: string;
+    small?: string;
+    medium?: string;
+    large?: string;
+    extraLarge?: string;
+  },
+): string | undefined {
+  const cover =
+    imageLinks?.extraLarge ??
+    imageLinks?.large ??
+    imageLinks?.medium ??
+    imageLinks?.thumbnail ??
+    imageLinks?.smallThumbnail ??
+    (itemId
+      ? `https://books.google.com/books/content?id=${itemId}&printsec=frontcover&img=1&zoom=1`
+      : undefined);
+
+  return cover?.replace(
+    "http://",
+    "https://",
+  );
+}
+
+function extractRelatedIsbns(
+  identifiers?: Array<{
+    type?: string;
+    identifier?: string;
+  }>,
+): string[] {
+  return dedupeIsbns(
+    identifiers?.map((identifier) =>
+      identifier.identifier?.replace(
+        /[^0-9X]/gi,
+        "",
+      ),
+    ) ?? [],
+  );
 }
 
 export async function lookupFromGoogleBooks(
@@ -55,15 +137,24 @@ export async function lookupFromGoogleBooks(
       ? isbn10ToIsbn13(isbn)
       : isbn;
 
-  const candidates = [
+  const candidates = dedupeIsbns([
     isbn,
     isbn13,
-  ].filter(Boolean);
+  ]);
 
   for (const candidate of candidates) {
     try {
+      const url = new URL(
+        GOOGLE_BOOKS,
+      );
+
+      url.searchParams.set(
+        "q",
+        `isbn:${candidate}`,
+      );
+
       const res = await fetch(
-        `${GOOGLE_BOOKS}?q=isbn:${candidate}`,
+        url.toString(),
       );
 
       if (!res.ok) {
@@ -81,34 +172,80 @@ export async function lookupFromGoogleBooks(
 
       const info = item.volumeInfo;
 
-      const cover =
-        info.imageLinks?.extraLarge ??
-        info.imageLinks?.large ??
-        info.imageLinks?.medium ??
-        info.imageLinks?.thumbnail ??
-        info.imageLinks?.smallThumbnail ??
-        (item.id
-          ? `https://books.google.com/books/content?id=${item.id}&printsec=frontcover&img=1&zoom=1`
-          : undefined);
+      const related_isbns =
+        extractRelatedIsbns(
+          info.industryIdentifiers,
+        );
+
+      const exact_match =
+        related_isbns.includes(isbn);
+
+      const title =
+        info.title?.trim();
+
+      if (!title) {
+        continue;
+      }
 
       return {
         source: "googlebooks",
-        title: info.title,
-        subtitle: info.subtitle,
-        author: info.authors?.join(", "),
+
         isbn,
-        cover_url: cover?.replace(
-          "http://",
-          "https://",
-        ),
-        total_pages: info.pageCount,
-        publisher: info.publisher,
-        published_year: parsePublishedYear(
-          info.publishedDate,
-        ),
-        language: info.language,
-        subjects: info.categories,
-        description: info.description,
+
+        related_isbns,
+
+        exact_match,
+
+        confidence: exact_match
+          ? 1
+          : 0.75,
+
+        provider_id: item.id,
+
+        title,
+
+        subtitle:
+          info.subtitle?.trim(),
+
+        author:
+          info.authors
+            ?.map((author) =>
+              author.trim(),
+            )
+            .filter(Boolean)
+            .join(", ") || undefined,
+
+        description:
+          cleanDescription(
+            info.description,
+          ),
+
+        total_pages:
+          info.pageCount,
+
+        published_year:
+          parsePublishedYear(
+            info.publishedDate,
+          ),
+
+        language:
+          info.language,
+
+        subjects:
+          info.categories
+            ?.map((category) =>
+              category.trim(),
+            )
+            .filter(Boolean),
+
+        publisher:
+          info.publisher?.trim(),
+
+        cover_url:
+          resolveCoverUrl(
+            item.id,
+            info.imageLinks,
+          ),
       };
     } catch {
       // Ignore provider errors
